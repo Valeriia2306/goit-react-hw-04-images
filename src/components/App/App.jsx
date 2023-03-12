@@ -9,7 +9,7 @@ import { Container } from './App.styled';
 
 import Button from '../Button';
 import Loader from '../Loader';
-// Adding hooks
+
 class App extends Component {
   state = {
     items: [],
