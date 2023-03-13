@@ -1,78 +1,73 @@
-import { Component } from 'react';
-
-import * as API from '../../services/Api';
+// import { Component } from 'react';
+import { useEffect, useState } from 'react';
+import { getImages } from '../../services/Api';
 import { NotificationContainer, notifyWarning } from '../Notification';
 import ImageGallery from '../ImageGallery';
 import Searchbar from '../Searchbar/Searchbar';
-import Title from '../MainTittle';
+import Tittle from '../MainTittle';
 import { Container } from './App.styled';
 
 import Button from '../Button';
 import Loader from '../Loader';
 
-class App extends Component {
-  state = {
-    items: [],
-    query: '',
-    page: 1,
-    status: 'pending',
-  };
+const App = () => {
+  const [items, setItems] = useState([]);
+  const [findQuery, setFindQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [status, setStatus] = useState('pending');
 
-  async componentDidUpdate(_, prevState) {
-    const { query, page } = this.state;
+  useEffect(() => {
+    if (findQuery === '') return;
 
-    if (prevState.query !== query || prevState.page !== page) {
-      try {
-        this.setState({ status: 'load' });
-
-        const images = await API.getImages({ query, page });
-
-        if (images.totalHits === 0) {
-          this.setState({ status: 'notFound' });
+    try {
+      setStatus('load');
+      getImages({ query: findQuery, page: currentPage }).then(response => {
+        if (response.totalHits === 0) {
+          setStatus('notFound');
           return notifyWarning(
-            `Sorry, nothing was found on request "${query}"`
+            `Sorry, nothing was found on request "${findQuery}"`
           );
         }
 
-        this.setState(({ items }) => ({
-          items: [...items, ...images.hits],
+        setItems(state => [...state, ...response.hits]);
 
-          status:
-            items.length + images.hits.length > images.totalHits
-              ? 'loadMore'
-              : 'noMore',
-        }));
-      } catch (error) {
-        this.setState({ status: error.message });
-        return notifyWarning(error.message);
-      }
+        if (response.hits.length < 12 || response.total < 12) {
+          return setStatus('noMore');
+        }
+        setStatus('loadMore');
+      });
+    } catch (error) {
+      setStatus(error.message);
+      notifyWarning(error.message);
     }
-  }
-  handleSabmitForm = value => {
-    this.setState({ query: value, page: 1, items: [] });
+  }, [currentPage, findQuery]);
+
+  const handleSabmitForm = value => {
+    setFindQuery(value);
+    setCurrentPage(1);
+    setItems([]);
   };
-  increasePage = () => {
-    this.setState(({ page }) => ({ page: page + 1 }));
+
+  const increasePage = () => {
+    setCurrentPage(page => page + 1);
   };
-  render() {
-    const { status } = this.state;
-    return (
-      <Container>
-        <Searchbar onSubmit={this.handleSabmitForm} />
-        <ImageGallery items={this.state.items} />
 
-        {(status === 'pending' && (
-          <Title>Search and find pictures of anything!</Title>
-        )) ||
-          (status === 'notFound' && <Title>Try again !</Title>)}
+  return (
+    <Container>
+      <Searchbar onSubmit={handleSabmitForm} />
+      <ImageGallery items={items} />
 
-        {status === 'load' && <Loader />}
-        {status === 'loadMore' && <Button onClick={this.increasePage} />}
+      {(status === 'pending' && (
+        <Tittle>Search and find pictures of anything!</Tittle>
+      )) ||
+        (status === 'notFound' && <Tittle>Try again !</Tittle>)}
 
-        <NotificationContainer />
-      </Container>
-    );
-  }
-}
+      {status === 'load' && <Loader />}
+      {status === 'loadMore' && <Button onClick={increasePage} />}
+
+      <NotificationContainer />
+    </Container>
+  );
+};
 
 export default App;
